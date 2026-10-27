@@ -1,8 +1,8 @@
 import json,time
 import numpy as np
 import torch
-from .experiment import *
-from .rendering import NativeRenderer,Supervision,probes
+from .pipeline import *
+from .render_supervision import NativeRenderer,Supervision,probes
 def main():
  runtime();wait_for_resources('training_only_render_scale');r=NativeRenderer();all_scales={}
  assert json.loads((ROOT/'ours_preflight.json').read_text())['complete']

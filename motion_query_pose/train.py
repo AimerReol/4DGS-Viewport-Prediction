@@ -2,11 +2,11 @@ import copy,json,math,time
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
-from .models import Predictor
-from .previous_model import pose_loss
-from .pose_metrics import pose_errors
-from .experiment import *
-from .rendering import NativeRenderer,Supervision
+from .predictor import Predictor
+from .pose_loss import pose_loss
+from .metrics import pose_errors
+from .pipeline import *
+from .render_supervision import NativeRenderer,Supervision
 
 @torch.no_grad()
 def predict(model,d,ids):

@@ -1,6 +1,6 @@
 import json,subprocess,time
 import numpy as np
-from .settings import *
+from .config import *
 def status(stage,**kw):save_json(ROOT/'status.json',dict(stage=stage,updated_at=time.time(),**kw))
 def snapshot():
  line=subprocess.check_output(['nvidia-smi','--query-gpu=memory.used,memory.free,utilization.gpu','--format=csv,noheader,nounits'],text=True).splitlines()[0]

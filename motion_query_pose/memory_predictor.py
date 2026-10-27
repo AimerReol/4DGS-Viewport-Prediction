@@ -1,7 +1,7 @@
 import torch
 from torch import nn
-from .base_model import PosePredictor as Original
-from .backbones import Sequence, AnchorMemory
+from .scene_graph_predictor import PosePredictor as Original
+from .temporal_encoding import Sequence, AnchorMemory
 
 class Predictor(Original):
     def __init__(self,method):

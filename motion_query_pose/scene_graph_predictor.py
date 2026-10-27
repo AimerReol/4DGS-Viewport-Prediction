@@ -1,10 +1,8 @@
-"""Factorial graph ablation: past-head conditioning x explicit motion relations."""
 import torch
 from torch import nn
-from .previous_model import pose_loss
+from .pose_loss import pose_loss
 
 METHODS=['OriginalNoGraph','OriginalEdge','EndpointTimeEdge','IntervalNoGraph','IntervalEdge','ShuffledIntervalEdge']
-
 
 class PosePredictor(nn.Module):
     def __init__(self,method,horizons=(2,5,10,20,30,50)):
@@ -17,7 +15,7 @@ class PosePredictor(nn.Module):
         self.method=method
         self.head_condition=method in ['HeadGraph','HeadMotionGraph']
         self.motion_relation=method in ['MotionGraph','HeadMotionGraph']
-        # Shared paths are constructed first for identical initial states per seed.
+
         self.history=nn.GRU(9,64,batch_first=True)
         self.history_head=nn.Sequential(nn.Linear(64,64),nn.ReLU(),nn.Linear(64,6*len(self.horizons)))
         self.scene_embed=nn.Linear(65,32)
@@ -29,7 +27,7 @@ class PosePredictor(nn.Module):
         nn.init.normal_(self.fusion[-1].weight,0,.002);nn.init.zeros_(self.fusion[-1].bias)
         self.norms=nn.ModuleList([nn.LayerNorm(32) for _ in range(2)])
         if method=='NoGraph':
-            # Similar active parameter count to the most expressive graph variant.
+
             self.local=nn.ModuleList([nn.Sequential(nn.Linear(32,110),nn.ReLU(),nn.Linear(110,32)) for _ in range(2)])
         elif method=='MeanGraph':
             self.local=nn.ModuleList([nn.Sequential(nn.Linear(96,55),nn.ReLU(),nn.Linear(55,32)) for _ in range(2)])
@@ -56,14 +54,12 @@ class PosePredictor(nn.Module):
             assert time_offsets is not None
             tokens=(tokens+self.time_embed(time_offsets[...,None])[:,:,None,:])*valid[frames][...,None]
         seq=tokens.permute(0,2,1,3).reshape(len(frames)*k,6,32)
-        # Anchor/context sequences are independent along this batch dimension.
-        # Chunk execution avoids the torch 2.4 CUDA attention grid limit for
-        # 1765 contexts x 64 anchors, retaining every six-token sequence.
+
         hidden=torch.cat([self.scene_time(part)[1][-1] for part in seq.split(8192)],dim=0)
         return hidden.reshape(len(frames),k,32)*valid[frames[:,-1]][...,None]
 
     def graph(self,h,edges,valid,user,horizon,geometry_embedding,relations,return_edges=False):
-        # Graph comes AFTER shared temporal encoding in every v2 variant.
+
         b,s,k,_=h.shape
         h=h.reshape(b*s,k,32);valid=valid.reshape(b*s,k);edges=edges.reshape(b*s,k,6)
         batch=torch.arange(b*s,device=h.device)[:,None,None]

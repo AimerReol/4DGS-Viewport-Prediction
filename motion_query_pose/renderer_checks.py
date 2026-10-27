@@ -2,16 +2,15 @@ import copy,json,time,traceback
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
-from .experiment import *
-from .rendering import NativeRenderer,Supervision,probes,rotvec_matrix,quaternion_matrix,pack_cov,unpack_cov,make_cam
-from .models import Predictor
-from .previous_model import pose_loss
+from .pipeline import *
+from .render_supervision import NativeRenderer,Supervision,probes,rotvec_matrix,quaternion_matrix,pack_cov,unpack_cov,make_cam
+from .predictor import Predictor
+from .pose_loss import pose_loss
 
 def main():
  runtime();wait_for_resources('preflight');r=NativeRenderer();rng=np.random.default_rng(2026101220);details={};began=time.time()
  a=dict(np.load(DATA/'cache/R1_inputs.npz'));sup=Supervision(r,a);h=len(HORIZONS)-1
- # Numerical renderer checks require a non-empty training view. This does not
- # remove or reweight any window used for fitting, calibration, or evaluation.
+
  candidates=[int(a['split_train'][53])]
  for user in np.unique(a['users'][a['split_train']]):
   selected=a['split_train'][a['users'][a['split_train']]==user]
@@ -27,7 +26,7 @@ def main():
  del alpha
  details['numerical_check_window']=dict(index=int(i),recording=int(a['users'][i]+1),origin=int(a['origins'][i]),target_frame=frame,foreground_coverage=coverage,training_only=True,all_experiment_windows_retained=True)
  truth=torch.tensor(a['y'][i,h],device='cuda');estimate=truth+torch.tensor([.02,-.01,.01,.03,-.04,.02],device='cuda');code=probes(rng)
- # Native reference: original Gaussian camera and camera-space covariance path.
+
  be=r.be;cfg=json.loads((SOURCE/'config.json').read_text());model,_=be.restore_model(cfg,be.load_torch(SOURCE/'base/model.pt')['model'])
  for param in be.all_params(model):param.requires_grad_(False)
  with torch.no_grad():
@@ -40,7 +39,7 @@ def main():
   sphere=(2*raw[1].mean(-1)).exp().double().pow(3);volume=(2*raw[1].double()).sum(-1).exp()
   details['sphere_volume_max_relative']=float(((sphere-volume).abs()/volume.clamp_min(1e-30)).max());assert details['sphere_volume_max_relative']<1e-4
  del model,raw,original,transformed,error;torch.cuda.empty_cache()
- # Exact64-map identity and signed precomputed-color linearity.
+
  with torch.no_grad():
   pp,pr=r.relative(p,rot,estimate);tp,tr=r.relative(p,rot,truth)
   pm=r.anchor_maps(frame,pp,pr);tm=r.anchor_maps(frame,tp,tr);delta=pm-tm
@@ -59,8 +58,7 @@ def main():
   uv,cov=projection(m,c);uvs,covs=projection(ms,cs)
   details['depth_control']=dict(projected_center_max_abs=float((uv-uvs).abs().max()),projected_cov_relative_norm=float(torch.linalg.vector_norm(cov-covs)/torch.linalg.vector_norm(cov)),changed_order=True)
   assert details['depth_control']['projected_center_max_abs']<1e-4 and details['depth_control']['projected_cov_relative_norm']<1e-5
- # Smooth synthetic scene for finite differences, avoiding discrete visibility
- # and sorting boundaries in the real reconstruction.
+
  pc=torch.tensor([[-.45,-.2,2.3],[.2,.4,2.8],[.5,-.1,3.2],[-.1,.15,3.8]],device='cuda')
  toy=torch.zeros((4,11),device='cuda');toy[:,:3]=(pc@r.flip-r.b)@r.a
  cov=torch.diag_embed(torch.tensor([[.03,.015,.01],[.015,.045,.02],[.025,.012,.016],[.03,.02,.01]],device='cuda'))
@@ -76,14 +74,14 @@ def main():
  fd=np.array(fd);gn=g.cpu().numpy();relative=np.linalg.norm(fd-gn)/max(np.linalg.norm(fd),1e-8)
  details['finite_difference']=dict(analytic=gn.tolist(),numerical=fd.tolist(),relative_norm_error=float(relative));assert relative<.06,details['finite_difference']
  r.lru.clear()
- # Real-scene gradients and auxiliary detachment; zero loss at equality.
+
  gradients={}
  for variant in METHODS[1:]:
   x=estimate.detach().clone().requires_grad_(True);loss=r.pair(frame,p,rot,x,truth,code,variant);g=torch.autograd.grad(loss,x)[0]
   assert torch.isfinite(g).all() and float(g[:3].norm())>0 and float(g[3:].norm())>0
   gradients[variant]=dict(loss=float(loss.detach()),translation_gradient_norm=float(g[:3].norm()),rotation_gradient_norm=float(g[3:].norm()))
  details['real_scene_pose_gradients']=gradients
- # Architecture parity, causal forward, and combined memory/gradient smoke.
+
  d=tensors('R1');ids=d['arrays']['split_train'][:CONFIG['batch']];torch.manual_seed(12);reference=Predictor().cuda();ref=copy.deepcopy(reference.state_dict())
  for method in METHODS:
   torch.manual_seed(12);m=Predictor(method).cuda()

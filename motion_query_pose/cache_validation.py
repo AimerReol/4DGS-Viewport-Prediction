@@ -1,7 +1,6 @@
-"""Fail early on incompatible caches; indices refer to playback, not source-video order."""
 import json
 import numpy as np
-from .data import sha,HORIZONS
+from .file_io import sha,HORIZONS
 
 def inspect_cache(root,splits):
     manifest=json.loads((root/'data_manifest.json').read_text(encoding='utf-8'))

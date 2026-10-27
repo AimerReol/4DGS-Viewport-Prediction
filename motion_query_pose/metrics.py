@@ -1,11 +1,4 @@
-"""CPU-only metrics for the actual viewpoint-prediction objective.
-
-Quaternions use xyzw and map local camera axes into world axes.
-Positions retain recorded coordinate units; metres are not assumed.
-No scene alignment or future-content features are required for these metrics.
-"""
 import numpy as np
-
 
 def _unit_quaternion(value):
     q = np.asarray(value, dtype=np.float64)
@@ -16,22 +9,18 @@ def _unit_quaternion(value):
         raise ValueError('Zero quaternion is not a rotation')
     return q / length
 
-
 def _forward(q):
     x, y, z, w = np.moveaxis(q, -1, 0)
     return np.stack([2 * (x * z + w * y), 2 * (y * z - w * x),
                      1 - 2 * (x * x + y * y)], axis=-1)
 
-
 def _angle_between(a, b):
-    # atan2 remains stable near zero and pi; both inputs are unit vectors.
+
     sine = np.linalg.norm(np.cross(a, b), axis=-1)
     cosine = np.sum(a * b, axis=-1)
     return np.degrees(np.arctan2(sine, cosine))
 
-
 def pose_errors(pred_position, pred_quaternion, true_position, true_quaternion):
-    """Return per-window/per-horizon errors without reducing across records."""
     pp, tp = np.asarray(pred_position, np.float64), np.asarray(true_position, np.float64)
     pq, tq = _unit_quaternion(pred_quaternion), _unit_quaternion(true_quaternion)
     if pp.shape != tp.shape or pp.ndim < 1 or pp.shape[-1] != 3:
@@ -40,7 +29,7 @@ def pose_errors(pred_position, pred_quaternion, true_position, true_quaternion):
         raise ValueError('Quaternion and position batch dimensions must match')
     if not np.isfinite(pp).all() or not np.isfinite(tp).all():
         raise ValueError('Positions must be finite')
-    # Relative quaternion conj(tq) * pq. Absolute scalar handles q == -q.
+
     a, b = -tq[..., :3], pq[..., :3]
     aw, bw = tq[..., 3:4], pq[..., 3:4]
     vector = aw * b + bw * a + np.cross(a, b)

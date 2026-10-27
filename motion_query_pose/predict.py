@@ -1,16 +1,15 @@
-"""Decode the six relative pose heads to absolute world-space poses."""
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
-from .models import Predictor
-from .experiment import tensors,encode,forward
-from .settings import DATA,ROOT,HORIZONS,CONFIG
-from .pose_metrics import pose_errors
-from .data import sha,save_json
+from .predictor import Predictor
+from .pipeline import tensors,encode,forward
+from .config import DATA,ROOT,HORIZONS,CONFIG
+from .metrics import pose_errors
+from .file_io import sha,save_json
 
 @torch.no_grad()
 def predict_checkpoint(checkpoint,split,part='test',device='cuda'):
-    # Load only your own trusted checkpoints: the frozen format contains NumPy objects.
+
     saved=torch.load(checkpoint,map_location=device,weights_only=False)
     metadata=saved.get('metadata',{})
     if metadata.get('split')!=split:raise ValueError('Checkpoint split does not match --split')

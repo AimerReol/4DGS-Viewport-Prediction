@@ -1,4 +1,3 @@
-"""Current Transformer temporal encoder and anchor memory, without legacy backbones."""
 import math
 import torch
 from torch import nn
@@ -10,7 +9,6 @@ class TransformerMixer(nn.Module):
         mask=torch.ones(x.shape[1],x.shape[1],device=x.device,dtype=torch.bool).triu(1)
         return self.attention(x,x,x,attn_mask=mask,need_weights=False)[0]
 
-
 class Sequence(nn.Module):
     def __init__(self,kind,input_dim,dim):
         super().__init__();self.project=nn.Linear(input_dim,dim) if input_dim!=dim else nn.Identity()
@@ -19,8 +17,7 @@ class Sequence(nn.Module):
         self.mix=TransformerMixer(dim)
         self.ff=nn.Sequential(nn.Linear(dim,2*dim),nn.GELU(),nn.Linear(2*dim,dim))
         self.final=nn.LayerNorm(dim)
-        # Positions are relative to the latest observation. The shared recent
-        # suffix has identical encodings for 30/90/150-head-frame inputs.
+
         times=torch.arange(-149,1)[:,None];freq=torch.exp(torch.arange(0,dim,2)*(-math.log(10000)/dim))
         pos=torch.zeros(150,dim);pos[:,0::2]=torch.sin(times*freq);pos[:,1::2]=torch.cos(times*freq)
         self.register_buffer('positions',pos,persistent=False)
@@ -29,7 +26,6 @@ class Sequence(nn.Module):
         x=self.project(x)+self.positions[-x.shape[1]:].to(x)[None]
         x=x+self.mix(self.norm1(x));x=x+self.ff(self.norm2(x));x=self.final(x)
         return x,x[:,-1][None]
-
 
 class AnchorMemory(nn.Module):
     def __init__(self,kind,correct=True):
@@ -44,7 +40,7 @@ class AnchorMemory(nn.Module):
         self.output=nn.Sequential(nn.LayerNorm(32),nn.Linear(32,32))
         nn.init.normal_(self.output[-1].weight,0,.002);nn.init.zeros_(self.output[-1].bias)
     def forward(self,past,pose,query,times,condition=None):
-        # past [B,K,30,73], pose [B,30,9], query [B,H,K,73].
+
         b,k,t,_=past.shape;h=query.shape[1]
         key=self.keys(past).reshape(b*k,t,32)
         value=self.values(pose)[:,None].expand(-1,k,-1,-1).reshape(b*k,t,32)

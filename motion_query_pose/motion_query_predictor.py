@@ -1,8 +1,8 @@
 from torch import nn
 import torch
-from .v13_models import Predictor as V13Predictor
+from .memory_predictor import Predictor as MemoryPredictor
 
-class Predictor(V13Predictor):
+class Predictor(MemoryPredictor):
     def __init__(self,method):
         assert method in ['Baseline','MotionQuery','SceneQuery']
         super().__init__('TransformerMemory')

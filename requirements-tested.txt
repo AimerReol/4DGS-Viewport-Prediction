@@ -1,5 +1,0 @@
-# Exact core versions used for this export's parity checks.
-# Install the PyTorch wheel matching your CUDA/CPU environment separately.
-numpy==1.26.4
-scipy==1.14.1
-torch==2.4.1

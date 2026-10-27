@@ -1,16 +1,10 @@
-"""Native Gaussian alpha compositing with gradients to a six-DoF camera.
-
-The installed CUDA extension does not differentiate camera settings. Move the
-frozen Gaussian means AND covariances differentiably into camera coordinates,
-then use an identity camera. The result is equivalent, with pose gradients.
-"""
 import json,math,sys
 from collections import OrderedDict
 from types import SimpleNamespace
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
-from .settings import DATA,SOURCE,PROJECT,OLD,RENDER,FIELD_PATH
+from .config import DATA,SOURCE,PROJECT,OLD,RENDER,FIELD_PATH
 
 def quaternion_matrix(q):
  q=q/torch.linalg.vector_norm(q,dim=-1,keepdim=True).clamp_min(1e-12)
@@ -64,8 +58,7 @@ class NativeRenderer:
   else:cov=unpack_cov(field[:,3:9])
   cov=w[None]@cov@w.T[None]
   if variant=='RenderDepthShuffle':
-   # Keep the perspective mean/covariance exactly unchanged. Only the positive
-   # z sort keys change. Preserve native near-plane classification (z>0.2).
+
    depth=means[:,2];ratio=torch.where(depth>.2,self.fake_depth/depth.clamp_min(.2),torch.ones_like(depth))
    means=means*ratio[:,None];cov=cov*ratio[:,None,None].square()
   return means,pack_cov(cov)
@@ -113,8 +106,7 @@ class Supervision:
    discrepancy=self.renderer.pair(frame,self.current_position[sample],self.current_rotation[sample],leaf,target_raw[row,h].detach(),code,variant)/self.denominator[h]
    gradient=torch.autograd.grad(discrepancy,leaf)[0]
    assert torch.isfinite(gradient).all() and torch.isfinite(discrepancy)
-   # Exact first derivative, releasing each native render graph immediately.
-   # The detached target and frozen scene never receive model updates.
+
    tangent=(raw*gradient.detach()).sum()
    terms.append(tangent-tangent.detach()+discrepancy.detach());logged.append(float(discrepancy.detach()))
   return torch.stack(terms).mean(),float(np.mean(logged))

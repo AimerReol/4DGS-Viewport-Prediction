@@ -1,4 +1,3 @@
-"""Extract one frozen canonical scene at the confirmed playback times; no predictor fitting."""
 import fcntl,json,math,sys,time,os
 from pathlib import Path
 from types import SimpleNamespace

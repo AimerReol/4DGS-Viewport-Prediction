@@ -1,9 +1,8 @@
-"""Prepare Actor1 head caches from the confirmed playback CSV; never fit a model."""
 import argparse
 from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
-from motion_query_pose.settings import RECORD_SPLITS,HORIZONS
+from motion_query_pose.config import RECORD_SPLITS,HORIZONS
 
 def prepare(csv,output):
     raw=np.genfromtxt(csv,delimiter=',',skip_header=1)
@@ -33,5 +32,5 @@ def prepare(csv,output):
             loss_scales=np.array([(y[tr,:,:3]**2).sum(-1).mean(),(y[tr,:,3:]**2).sum(-1).mean()]).clip(1e-6),**ids)
 
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--csv',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
+    p=argparse.ArgumentParser();p.add_argument('--csv',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     a=p.parse_args();prepare(a.csv,a.output)

@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from .data import sha,save_json,HORIZONS
+from .file_io import sha,save_json,HORIZONS
 import os
 DATA=Path(os.environ.get('MQP_DATA_DIR','data/prepared')).resolve()
 ROOT=Path(os.environ.get('MQP_OUTPUT_DIR','runs/current')).resolve()
